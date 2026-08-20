@@ -302,4 +302,86 @@ export class TasksService {
       success: true,
     };
   }
+
+  async addMember(
+    userId: string,
+    workspaceId: string,
+    taskId: string,
+    memberId: string,
+  ) {
+    await this.assertWorkspaceMember(userId, workspaceId);
+
+    const task = await this.prisma.task.findFirst({
+      where: {
+        id: taskId,
+        workspaceId,
+      },
+    });
+
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+
+    await this.assertUserBelongsToWorkspace(
+      workspaceId,
+      memberId,
+      'Task member',
+    );
+
+    return this.prisma.taskMember.create({
+      data: {
+        taskId,
+        userId: memberId,
+      },
+      include: {
+        user: true,
+      },
+    });
+  }
+
+  async removeMember(
+    userId: string,
+    workspaceId: string,
+    taskId: string,
+    memberId: string,
+  ) {
+    await this.assertWorkspaceMember(userId, workspaceId);
+
+    const task = await this.prisma.task.findFirst({
+      where: {
+        id: taskId,
+        workspaceId,
+      },
+    });
+
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+
+    const membership = await this.prisma.taskMember.findUnique({
+      where: {
+        taskId_userId: {
+          taskId,
+          userId: memberId,
+        },
+      },
+    });
+
+    if (!membership) {
+      throw new NotFoundException('Task member not found');
+    }
+
+    await this.prisma.taskMember.delete({
+      where: {
+        taskId_userId: {
+          taskId,
+          userId: memberId,
+        },
+      },
+    });
+
+    return {
+      success: true,
+    };
+  }
 }
