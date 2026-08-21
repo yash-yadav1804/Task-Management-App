@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '../../database/prisma.service';
+import { ActivityService } from './activity.service';
 import { TasksService } from './tasks.service';
 
 describe('TasksService', () => {
@@ -19,6 +20,16 @@ describe('TasksService', () => {
       update: jest.fn(),
       delete: jest.fn(),
     },
+    taskMember: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      delete: jest.fn(),
+    },
+  };
+
+  const activityServiceMock = {
+    record: jest.fn(),
+    findByTask: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -30,6 +41,10 @@ describe('TasksService', () => {
         {
           provide: PrismaService,
           useValue: prismaMock,
+        },
+        {
+          provide: ActivityService,
+          useValue: activityServiceMock,
         },
       ],
     }).compile();
