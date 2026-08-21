@@ -8,6 +8,7 @@ import { ProjectsModule } from './modules/projects/projects.module';
 import { TasksModule } from './modules/tasks/tasks.module';
 import { LabelsModule } from './modules/labels/labels.module';
 import { CommentsModule } from './modules/comments/comments.module';
+import { ResourcesModule } from './modules/resources/resources.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { CommentsModule } from './modules/comments/comments.module';
     TasksModule,
     LabelsModule,
     CommentsModule,
+    ResourcesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
