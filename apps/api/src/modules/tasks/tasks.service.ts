@@ -4,13 +4,18 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ActivityService } from './activity.service';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
+import { CreateSubtaskDto } from './dto/create-subtask.dto';
 
 @Injectable()
 export class TasksService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly activityService: ActivityService,
+  ) {}
 
   private async assertWorkspaceMember(userId: string, workspaceId: string) {
     const membership = await this.prisma.workspaceMember.findUnique({
@@ -110,7 +115,7 @@ export class TasksService {
       );
     }
 
-    return this.prisma.task.create({
+    const task = await this.prisma.task.create({
       data: {
         title: dto.title,
         description: dto.description,
@@ -128,6 +133,8 @@ export class TasksService {
         reporter: true,
       },
     });
+    await this.activityService.record(task.id, userId, 'CREATED');
+    return task;
   }
 
   async findAll(userId: string, workspaceId: string) {
@@ -383,5 +390,95 @@ export class TasksService {
     return {
       success: true,
     };
+  }
+  async createSubtask(
+    userId: string,
+    workspaceId: string,
+    parentTaskId: string,
+    dto: CreateSubtaskDto,
+  ) {
+    await this.assertWorkspaceMember(userId, workspaceId);
+
+    const parentTask = await this.prisma.task.findFirst({
+      where: {
+        id: parentTaskId,
+        workspaceId,
+      },
+    });
+
+    if (!parentTask) {
+      throw new NotFoundException('Parent task not found');
+    }
+
+    if (dto.projectId) {
+      await this.assertProjectBelongsToWorkspace(workspaceId, dto.projectId);
+    }
+
+    if (dto.reporterId) {
+      await this.assertUserBelongsToWorkspace(
+        workspaceId,
+        dto.reporterId,
+        'Reporter',
+      );
+    }
+
+    const subtask = await this.prisma.task.create({
+      data: {
+        title: dto.title,
+        description: dto.description,
+        status: dto.status,
+        priority: dto.priority,
+        startDate: dto.startDate ? new Date(dto.startDate) : undefined,
+        dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
+        workspaceId,
+        projectId: dto.projectId,
+        reporterId: dto.reporterId ?? userId,
+        parentTaskId,
+      },
+      include: {
+        reporter: true,
+        project: true,
+      },
+    });
+
+    await this.activityService.record(parentTaskId, userId, 'CREATED', {
+      subtaskId: subtask.id,
+      type: 'SUBTASK',
+    });
+
+    return subtask;
+  }
+
+  async findSubtasks(
+    userId: string,
+    workspaceId: string,
+    parentTaskId: string,
+  ) {
+    await this.assertWorkspaceMember(userId, workspaceId);
+
+    const parentTask = await this.prisma.task.findFirst({
+      where: {
+        id: parentTaskId,
+        workspaceId,
+      },
+    });
+
+    if (!parentTask) {
+      throw new NotFoundException('Parent task not found');
+    }
+
+    return this.prisma.task.findMany({
+      where: {
+        workspaceId,
+        parentTaskId,
+      },
+      include: {
+        reporter: true,
+        project: true,
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
   }
 }

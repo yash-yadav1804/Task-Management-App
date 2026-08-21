@@ -16,6 +16,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { TasksService } from './tasks.service';
+import { CreateSubtaskDto } from './dto/create-subtask.dto';
 
 type CurrentUserType = Awaited<
   ReturnType<AuthService['getUserFromRefreshToken']>
@@ -98,5 +99,24 @@ export class TasksController {
       taskId,
       memberId,
     );
+  }
+
+  @Post(':taskId/subtasks')
+  createSubtask(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Param('taskId', ParseUUIDPipe) taskId: string,
+    @CurrentUser() user: CurrentUserType,
+    @Body() dto: CreateSubtaskDto,
+  ) {
+    return this.tasksService.createSubtask(user.id, workspaceId, taskId, dto);
+  }
+
+  @Get(':taskId/subtasks')
+  findSubtasks(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Param('taskId', ParseUUIDPipe) taskId: string,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    return this.tasksService.findSubtasks(user.id, workspaceId, taskId);
   }
 }
